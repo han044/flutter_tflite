@@ -728,7 +728,7 @@ public class TflitePlugin implements MethodCallHandler {
     long startTime;
     int gridSize;
     int numClasses;
-    final float[][][][] output;
+    final float[][][] output;
 
     RunYOLO(HashMap args,
             ByteBuffer imgData,
@@ -752,7 +752,7 @@ public class TflitePlugin implements MethodCallHandler {
 
       this.gridSize = inputSize / blockSize;
       this.numClasses = labels.size();
-      this.output = new float[1][gridSize][gridSize][(numClasses + 5) * numBoxesPerBlock];
+      this.output = new float[1][gridSize][(numClasses + 5) * numBoxesPerBlock];
     }
 
     protected void runTflite() {
@@ -772,16 +772,15 @@ public class TflitePlugin implements MethodCallHandler {
                 }
               });
 
-      for (int y = 0; y < gridSize; ++y) {
         for (int x = 0; x < gridSize; ++x) {
           for (int b = 0; b < numBoxesPerBlock; ++b) {
             final int offset = (numClasses + 5) * b;
 
-            final float confidence = sigmoid(output[0][y][x][offset + 4]);
+            final float confidence = sigmoid(output[0][x][offset + 4]);
 
             final float[] classes = new float[numClasses];
             for (int c = 0; c < numClasses; ++c) {
-              classes[c] = output[0][y][x][offset + 5 + c];
+              classes[c] = output[0][x][offset + 5 + c];
             }
             softmax(classes);
 
@@ -796,11 +795,11 @@ public class TflitePlugin implements MethodCallHandler {
 
             final float confidenceInClass = maxClass * confidence;
             if (confidenceInClass > threshold) {
-              final float xPos = (x + sigmoid(output[0][y][x][offset + 0])) * blockSize;
-              final float yPos = (y + sigmoid(output[0][y][x][offset + 1])) * blockSize;
+              final float xPos = (x + sigmoid(output[0][x][offset + 0])) * blockSize;
+              final float yPos = (x + sigmoid(output[0][x][offset + 1])) * blockSize;
 
-              final float w = (float) (Math.exp(output[0][y][x][offset + 2]) * anchors.get(2 * b + 0)) * blockSize;
-              final float h = (float) (Math.exp(output[0][y][x][offset + 3]) * anchors.get(2 * b + 1)) * blockSize;
+              final float w = (float) (Math.exp(output[0][x][offset + 2]) * anchors.get(2 * b + 0)) * blockSize;
+              final float h = (float) (Math.exp(output[0][x][offset + 3]) * anchors.get(2 * b + 1)) * blockSize;
 
               final float xmin = Math.max(0, (xPos - w / 2) / inputSize);
               final float ymin = Math.max(0, (yPos - h / 2) / inputSize);
@@ -820,7 +819,7 @@ public class TflitePlugin implements MethodCallHandler {
             }
           }
         }
-      }
+
 
       Map<String, Integer> counters = new HashMap<>();
       List<Map<String, Object>> results = new ArrayList<>();
